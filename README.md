@@ -6,13 +6,11 @@ An interactive dashboard built with R Shiny for performing Principal Component A
 
 ## Features
 
-* Upload custom datasets
-* Perform Principal Component Analysis (PCA)
 * Interactive visualizations
 * Scree plot for explained variance
-* PCA biplot visualization
 * Data preprocessing support
 * Clean and responsive Shiny UI
+* searching by the country aligibility
 
 ## Technologies Used
 
@@ -20,8 +18,7 @@ An interactive dashboard built with R Shiny for performing Principal Component A
 * Shiny
 * tidyverse
 * ggplot2
-* FactoMineR
-* factoextra
+* Rcpp
 
 ## Project Structure
 
