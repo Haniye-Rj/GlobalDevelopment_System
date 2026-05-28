@@ -65,11 +65,7 @@ The project transforms a traditional static analysis into a reusable analytical 
 * Rcpp
 * tidyverse
 * WDI
-* factoextra
 * cluster
-* ggplot2
-* corrplot
-
 ---
 
 ## Project Structure
