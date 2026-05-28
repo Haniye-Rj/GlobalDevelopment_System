@@ -78,8 +78,6 @@ GlobalDevelopment_System/
 │   └── DevelopmentModel.R   # R6 analytical engine
 ├── src/
 │   └── distance.cpp         # Rcpp distance calculation
-├── inst/
-│   └── PCA_Clustering.R     # Exploratory prototype analysis
 ├── rsconnect/               # Shiny deployment configuration
 └── README.md
 ```
