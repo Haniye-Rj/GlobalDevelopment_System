@@ -71,13 +71,29 @@ ui <- fluidPage(
   tabsetPanel(
     tabPanel("Dataset Preview", DTOutput("data_preview")),
     tabPanel("Correlation Analysis", plotOutput("corr_plot")),
+    tabPanel("Aid Allocation Priority", DTOutput("rankings_table")),
+    tabPanel("Priority Score Distribution", plotOutput("priority_distribution")),
     tabPanel("Scree / Evaluation", plotOutput("scree_plot")),
     #tabPanel("PCA Biplot", plotOutput("pca_biplot")),
     tabPanel("Cluster Biplot Space", plotOutput("cluster_plot")),
     tabPanel("Silhouette Evaluation", plotOutput("silhouette_plot")),
     tabPanel("Cluster Profiles", DTOutput("cluster_profiles")),
-    tabPanel("Aid Allocation Priority", DTOutput("rankings_table")),
-    tabPanel("Country Eligibility", DTOutput("country_check"))
+    tabPanel("Country Eligibility", DTOutput("country_check")),
+    tabPanel(
+      "Analytical Assistant",
+      selectInput(
+        "assistant_question",
+        "Ask a question:",
+        choices = c(
+          "Which countries have highest aid priority?",
+          "Which cluster has the lowest average GDP?",
+          "Which cluster has the highest mortality?",
+          "How many countries are eligible for high priority aid?",
+          "Explain the PCA and clustering result"
+        )
+      ),
+      verbatimTextOutput("assistant_answer")
+    )
   )
 )
 
@@ -114,7 +130,7 @@ server <- function(input, output, session) {
     datatable(
       model$data_clean %>%
         select(
-          country, GDP, lifeExp, fertilityRt, education, literacyRt,
+          country, GDP, lifeExp, fertilityRt, education, #literacyRt,
           populationGth, unemploymentRt, mortalityRt, CO2Em
         ),
       options = list(
@@ -206,7 +222,7 @@ server <- function(input, output, session) {
         Avg_Life_Expectancy = round(mean(lifeExp, na.rm = TRUE), 2),
         Avg_Fertility = round(mean(fertilityRt, na.rm = TRUE), 2),
         Avg_Education = round(mean(education, na.rm = TRUE), 2),
-        Avg_Literacy = round(mean(literacyRt, na.rm = TRUE), 2),
+        #Avg_Literacy = round(mean(literacyRt, na.rm = TRUE), 2),
         Avg_Population_Growth = round(mean(populationGth, na.rm = TRUE), 2),
         Avg_Unemployment = round(mean(unemploymentRt, na.rm = TRUE), 2),
         Avg_Mortality = round(mean(mortalityRt, na.rm = TRUE), 2),
@@ -240,6 +256,138 @@ server <- function(input, output, session) {
       ),
       rownames = FALSE
     )
+  })
+  
+  output$priority_distribution <- renderPlot({
+    m <- run_pipeline()
+    
+    rankings <- m$calculate_aid_priority() %>%
+      add_eligibility()
+    
+    ggplot(rankings, aes(x = Priority_Score, fill = Eligibility)) +
+      geom_histogram(
+        bins = 20,
+        color = "white",
+        alpha = 0.8
+      ) +
+      theme_minimal() +
+      labs(
+        title = "Distribution of Aid Priority Scores",
+        x = "Priority Score (0–100)",
+        y = "Number of Countries",
+        fill = "Eligibility"
+      )
+  })
+  output$priority_distribution <- renderPlot({
+    m <- run_pipeline()
+    
+    rankings <- m$calculate_aid_priority() %>%
+      add_eligibility()
+    
+    ggplot(rankings, aes(x = Priority_Score, fill = Eligibility)) +
+      geom_histogram(
+        bins = 20,
+        color = "white",
+        alpha = 0.8
+      ) +
+      theme_minimal() +
+      labs(
+        title = "Distribution of Aid Priority Scores",
+        x = "Priority Score (0–100)",
+        y = "Number of Countries",
+        fill = "Eligibility"
+      )
+  })
+  output$assistant_answer <- renderText({
+    
+    m <- run_pipeline()
+    
+    rankings <- m$calculate_aid_priority() %>%
+      add_eligibility()
+    
+    profiles <- m$data_clean %>%
+      mutate(
+        Cluster = m$cluster_model$cluster
+      ) %>%
+      group_by(Cluster) %>%
+      summarise(
+        Avg_GDP = mean(GDP, na.rm = TRUE),
+        Avg_Mortality = mean(mortalityRt, na.rm = TRUE),
+        Countries = n(),
+        .groups = "drop"
+      )
+    
+    if (input$assistant_question ==
+        "Which countries have highest aid priority?") {
+      
+      top_countries <- rankings %>%
+        arrange(desc(Priority_Score)) %>%
+        slice_head(n = 5) %>%
+        pull(Country)
+      
+      paste(
+        "The countries with the highest aid priority are:",
+        paste(top_countries, collapse = ", ")
+      )
+      
+    } else if (
+      input$assistant_question ==
+      "Which cluster has the lowest average GDP?"
+    ) {
+      
+      lowest_cluster <- profiles %>%
+        arrange(Avg_GDP) %>%
+        slice(1)
+      
+      paste(
+        "Cluster",
+        lowest_cluster$Cluster,
+        "has the lowest average GDP."
+      )
+      
+    } else if (
+      input$assistant_question ==
+      "Which cluster has the highest mortality?"
+    ) {
+      
+      highest_mortality <- profiles %>%
+        arrange(desc(Avg_Mortality)) %>%
+        slice(1)
+      
+      paste(
+        "Cluster",
+        highest_mortality$Cluster,
+        "has the highest average mortality rate."
+      )
+      
+    } else if (
+      input$assistant_question ==
+      "How many countries are eligible for high priority aid?"
+    ) {
+      
+      high_priority_count <- rankings %>%
+        filter(
+          Eligibility == "Eligible - High aid priority"
+        ) %>%
+        nrow()
+      
+      paste(
+        high_priority_count,
+        "countries are classified as high-priority aid candidates."
+      )
+      
+    } else if (
+      input$assistant_question ==
+      "Explain the PCA and clustering result"
+    ) {
+      
+      paste(
+        "PCA reduces the development indicators into two main components.",
+        "These components summarize the main variation across countries.",
+        "The clustering algorithm groups countries with similar development profiles.",
+        "The aid priority score is calculated from the countries' position in PCA space."
+      )
+    }
   })
   
   country_result <- eventReactive(input$check_country, {
